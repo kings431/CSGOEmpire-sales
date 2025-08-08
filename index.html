@@ -1,0 +1,907 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CS:GO Price History</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0f1419 0%, #1a1f2e 100%);
+            color: #e3e6f0;
+            padding: 20px;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            height: calc(100vh - 40px);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+            padding: 15px;
+            background: linear-gradient(135deg, #1a2233 0%, #232b3a 100%);
+            border-radius: 12px;
+            border: 1px solid #2d3748;
+            flex-shrink: 0;
+        }
+
+        .header h1 {
+            color: #4fc3f7;
+            font-size: 2em;
+            margin-bottom: 5px;
+        }
+
+        .header p {
+            color: #b0b8c1;
+            font-size: 1em;
+        }
+
+        .last-updated {
+            color: #4caf50;
+            font-size: 0.8em;
+            margin-top: 5px;
+        }
+
+        .item-selector {
+            background: linear-gradient(135deg, #1a2233 0%, #232b3a 100%);
+            border-radius: 12px;
+            padding: 15px;
+            margin-bottom: 15px;
+            border: 1px solid #2d3748;
+            flex-shrink: 0;
+        }
+
+        .item-selector label {
+            display: block;
+            margin-bottom: 8px;
+            color: #4fc3f7;
+            font-weight: bold;
+        }
+
+        .item-selector select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #2d3748;
+            border-radius: 6px;
+            background: #1a1f2e;
+            color: #e3e6f0;
+            font-size: 1em;
+        }
+
+        .search-container {
+            position: relative;
+            margin-bottom: 10px;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #2d3748;
+            border-radius: 6px;
+            background: #1a1f2e;
+            color: #e3e6f0;
+            font-size: 1em;
+            margin-bottom: 8px;
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: #4fc3f7;
+            box-shadow: 0 0 0 2px rgba(79, 195, 247, 0.2);
+        }
+
+        .search-input::placeholder {
+            color: #b0b8c1;
+        }
+
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+        }
+
+        .chart-container {
+            background: linear-gradient(135deg, #1a2233 0%, #232b3a 100%);
+            border-radius: 12px;
+            padding: 15px;
+            margin-bottom: 15px;
+            border: 1px solid #2d3748;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+        }
+
+        .chart-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            flex-shrink: 0;
+        }
+
+        .chart-title {
+            color: #4fc3f7;
+            font-size: 1.3em;
+            font-weight: bold;
+        }
+
+        .range-buttons {
+            display: flex;
+            gap: 8px;
+        }
+
+        .range-btn {
+            padding: 6px 12px;
+            border: 1px solid #2d3748;
+            background: #1a1f2e;
+            color: #b0b8c1;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 0.9em;
+        }
+
+        .range-btn:hover {
+            background: #2d3748;
+            color: #fff;
+        }
+
+        .range-btn.active {
+            background: #4fc3f7;
+            color: #1a2233;
+            border-color: #4fc3f7;
+        }
+
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 10px;
+            margin-bottom: 15px;
+            flex-shrink: 0;
+        }
+
+        .stat-card {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 6px;
+            padding: 10px;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #4fc3f7;
+        }
+
+        .stat-label {
+            color: #b0b8c1;
+            font-size: 0.8em;
+            margin-top: 3px;
+        }
+
+        .chart-area {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 6px;
+            padding: 15px;
+            flex: 1;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        .chart-wrapper {
+            flex: 1;
+            position: relative;
+            height: 300px;
+            max-height: 300px;
+        }
+
+        .chart-canvas {
+            width: 100% !important;
+            height: 100% !important;
+            max-height: 300px !important;
+        }
+
+        .price-list {
+            margin-top: 15px;
+            max-height: 120px;
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
+
+        .price-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .price-item:last-child {
+            border-bottom: none;
+        }
+
+        .price-info {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .price-time {
+            color: #4fc3f7;
+            font-size: 0.8em;
+        }
+
+        .price-value {
+            color: #fff;
+            font-weight: bold;
+            font-size: 1em;
+        }
+
+        .price-usd {
+            color: #b0b8c1;
+            font-size: 0.7em;
+        }
+
+        .placeholder {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: #b0b8c1;
+            font-size: 1em;
+        }
+
+        .sales-container {
+            background: linear-gradient(135deg, #1a2233 0%, #232b3a 100%);
+            border-radius: 12px;
+            padding: 15px;
+            border: 1px solid #2d3748;
+            flex-shrink: 0;
+            max-height: 180px;
+            overflow-y: auto;
+        }
+
+        .sales-header {
+            color: #4fc3f7;
+            font-size: 1.1em;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        .sales-summary {
+            background: rgba(79, 195, 247, 0.1);
+            border: 1px solid rgba(79, 195, 247, 0.3);
+            border-radius: 6px;
+            padding: 15px;
+            margin-bottom: 15px;
+        }
+
+        .summary-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .summary-title {
+            color: #4fc3f7;
+            font-weight: bold;
+            font-size: 1em;
+        }
+
+        .summary-stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+
+        .summary-stat {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+            padding: 8px;
+            text-align: center;
+        }
+
+        .summary-stat-value {
+            color: #4fc3f7;
+            font-weight: bold;
+            font-size: 1em;
+        }
+
+        .summary-stat-label {
+            color: #b0b8c1;
+            font-size: 0.7em;
+        }
+
+        .sales-chips {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+
+        .sale-chip {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+            padding: 6px 8px;
+            font-size: 0.8em;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .sale-chip:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: #4fc3f7;
+        }
+
+        .sale-time {
+            color: #4fc3f7;
+            font-weight: bold;
+        }
+
+        .sale-price {
+            color: #fff;
+        }
+
+        .sale-usd {
+            color: #b0b8c1;
+            font-size: 0.7em;
+        }
+
+        .no-data {
+            color: #888;
+            text-align: center;
+            padding: 20px;
+            font-size: 1em;
+        }
+
+        .footer {
+            text-align: center;
+            margin-top: 15px;
+            padding: 10px;
+            color: #b0b8c1;
+            font-size: 0.8em;
+            flex-shrink: 0;
+        }
+
+        @media (max-width: 768px) {
+            .stats-row {
+                grid-template-columns: 1fr;
+            }
+            
+            .summary-stats {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎯 CS:GO Price History</h1>
+            <p>Real-time price data from CSGOEmpire sales</p>
+            <div class="last-updated" id="lastUpdated">Loading...</div>
+        </div>
+
+        <div class="item-selector">
+            <label for="itemSelect">Select Item:</label>
+            <div class="search-container">
+                <input type="text" id="itemSearch" class="search-input" placeholder="Search items..." autocomplete="off">
+            </div>
+            <select id="itemSelect">
+                <option value="">Loading items...</option>
+            </select>
+        </div>
+
+        <div class="main-content">
+            <div class="chart-container" id="chartContainer" style="display: none;">
+                <div class="chart-header">
+                    <div class="chart-title" id="chartTitle">Price History</div>
+                    <div class="range-buttons">
+                        <button class="range-btn active" data-range="7">7D</button>
+                        <button class="range-btn" data-range="30">30D</button>
+                        <button class="range-btn" data-range="all">All</button>
+                    </div>
+                </div>
+                
+                <div class="stats-row">
+                    <div class="stat-card">
+                        <div class="stat-value" id="statPriceChange">-</div>
+                        <div class="stat-label">Price Change</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="statSalesPerDay">-</div>
+                        <div class="stat-label">Sales/Day</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="statTotalSales">-</div>
+                        <div class="stat-label">Total Sales</div>
+                    </div>
+                </div>
+
+                <div class="chart-area">
+                    <div class="chart-wrapper">
+                        <canvas id="priceChart" class="chart-canvas"></canvas>
+                    </div>
+                    <div class="price-list" id="priceList">
+                        <div class="placeholder">Select an item to view price history</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="sales-container" id="salesContainer" style="display: none;">
+                <div class="sales-header">Sales History</div>
+                <div id="salesContent"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="footer">
+        <p>Powered by CSGOEmpire Bot • Data updated manually</p>
+    </div>
+
+    <script>
+        let currentData = null;
+        let currentRange = 7;
+        let currentItem = null;
+        let currentChart = null;
+
+        // Load data on page load
+        window.addEventListener('load', async () => {
+            console.log('Page loaded, starting data load...');
+            await loadData();
+        });
+
+        async function loadData() {
+            try {
+                console.log('Attempting to load price data...');
+                const response = await fetch('./price_data.json');
+                console.log('Response status:', response.status);
+                
+                if (!response.ok) {
+                    throw new Error(`Failed to load price data: HTTP ${response.status}`);
+                }
+                
+                const data = await response.json();
+                console.log('Data loaded successfully:', data);
+                
+                if (!data || !data.items) {
+                    throw new Error('Invalid data structure: missing items array');
+                }
+                
+                currentData = data;
+                
+                // Update last updated time
+                const lastUpdated = new Date(currentData.lastUpdated);
+                document.getElementById('lastUpdated').textContent = 
+                    `Last updated: ${lastUpdated.toLocaleString()}`;
+                
+                // Populate item dropdown
+                populateItemDropdown();
+                
+                console.log(`Loaded ${currentData.items.length} items`);
+                
+            } catch (error) {
+                console.error('Error loading data:', error);
+                document.getElementById('lastUpdated').textContent = `Error: ${error.message}`;
+                document.getElementById('itemSelect').innerHTML = 
+                    '<option value="">Error loading data - check console for details</option>';
+            }
+        }
+
+        function populateItemDropdown() {
+            const select = document.getElementById('itemSelect');
+            select.innerHTML = '<option value="">Select an item...</option>';
+            
+            if (currentData && currentData.items) {
+                // Sort items alphabetically
+                const sortedItems = currentData.items.sort((a, b) => 
+                    a.market_name.localeCompare(b.market_name)
+                );
+                
+                // Store all items for filtering
+                window.allItems = sortedItems;
+                
+                sortedItems.forEach(item => {
+                    const option = document.createElement('option');
+                    option.value = `${item.market_name}|||${item.wear_name}`;
+                    option.textContent = `${item.market_name} (${item.wear_name})`;
+                    select.appendChild(option);
+                });
+                
+                console.log(`Populated dropdown with ${sortedItems.length} items`);
+            }
+        }
+
+        // Handle item selection
+        document.getElementById('itemSelect').addEventListener('change', function() {
+            const selectedValue = this.value;
+            console.log('Item selected:', selectedValue);
+            
+            if (selectedValue) {
+                const [marketName, wearName] = selectedValue.split('|||');
+                displayItemData(marketName, wearName);
+            } else {
+                hideCharts();
+            }
+        });
+
+        // Handle search functionality
+        document.getElementById('itemSearch').addEventListener('input', function() {
+            const searchTerm = this.value.toLowerCase().trim();
+            const select = document.getElementById('itemSelect');
+            
+            // Clear current options
+            select.innerHTML = '<option value="">Select an item...</option>';
+            
+            if (!window.allItems) return;
+            
+            // Filter items based on search term
+            const filteredItems = window.allItems.filter(item => {
+                const itemText = `${item.market_name} (${item.wear_name})`.toLowerCase();
+                return itemText.includes(searchTerm);
+            });
+            
+            // Add filtered options
+            filteredItems.forEach(item => {
+                const option = document.createElement('option');
+                option.value = `${item.market_name}|||${item.wear_name}`;
+                option.textContent = `${item.market_name} (${item.wear_name})`;
+                select.appendChild(option);
+            });
+            
+            // If search is empty, show all items
+            if (searchTerm === '') {
+                window.allItems.forEach(item => {
+                    const option = document.createElement('option');
+                    option.value = `${item.market_name}|||${item.wear_name}`;
+                    option.textContent = `${item.market_name} (${item.wear_name})`;
+                    select.appendChild(option);
+                });
+            }
+            
+            console.log(`Filtered to ${filteredItems.length} items matching "${searchTerm}"`);
+        });
+
+        // Handle range button clicks
+        document.querySelectorAll('.range-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                document.querySelectorAll('.range-btn').forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+                currentRange = this.dataset.range === 'all' ? 'all' : parseInt(this.dataset.range);
+                console.log('Range changed to:', currentRange);
+                if (currentItem) {
+                    updateChart(currentItem.history);
+                    updatePriceList(currentItem.history);
+                    updateStats(currentItem.history);
+                    updateSalesDisplay(currentItem.history);
+                }
+            });
+        });
+
+        function displayItemData(marketName, wearName) {
+            console.log('Displaying data for:', marketName, wearName);
+            
+            // Find the exact item by matching both market_name and wear_name
+            const item = currentData.items.find(i => 
+                i.market_name === marketName && i.wear_name === wearName
+            );
+            
+            console.log('Looking for item with:', { marketName, wearName });
+            
+            if (!item || !item.history || item.history.length === 0) {
+                console.log('No data found for item');
+                showNoData();
+                return;
+            }
+
+            currentItem = item;
+            console.log('Found item with', item.history.length, 'sales');
+
+            document.getElementById('chartContainer').style.display = 'flex';
+            document.getElementById('salesContainer').style.display = 'block';
+            document.getElementById('chartTitle').textContent = `${marketName} (${wearName})`;
+            
+            // Update all components
+            updateChart(item.history);
+            updatePriceList(item.history);
+            updateStats(item.history);
+            updateSalesDisplay(item.history);
+        }
+
+        function updateChart(history) {
+            const filteredHistory = filterHistoryByRange(history, currentRange);
+            console.log('Filtered history:', filteredHistory.length, 'sales');
+            
+            if (filteredHistory.length === 0) {
+                return;
+            }
+
+            // Destroy existing chart
+            if (currentChart) {
+                currentChart.destroy();
+                currentChart = null;
+            }
+
+            const canvas = document.getElementById('priceChart');
+            if (!canvas) {
+                console.error('Canvas not found');
+                return;
+            }
+
+            const ctx = canvas.getContext('2d');
+            if (!ctx) {
+                console.error('Could not get canvas context');
+                return;
+            }
+
+            // Create chart data with proper time labels
+            const labels = filteredHistory.map(sale => {
+                const date = new Date(sale.timestamp);
+                return date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+            });
+            const prices = filteredHistory.map(h => h.price / 100);
+
+            console.log('Creating chart with', labels.length, 'data points');
+
+            currentChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Price (coins)',
+                        data: prices,
+                        borderColor: '#4fc3f7',
+                        backgroundColor: 'rgba(79, 195, 247, 0.1)',
+                        borderWidth: 3,
+                        fill: true,
+                        tension: 0.4,
+                        pointBackgroundColor: '#4fc3f7',
+                        pointBorderColor: '#fff',
+                        pointBorderWidth: 2,
+                        pointRadius: 4,
+                        pointHoverRadius: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                                                 tooltip: {
+                             backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                             titleColor: '#fff',
+                             bodyColor: '#4fc3f7',
+                             borderColor: '#4fc3f7',
+                             borderWidth: 1,
+                             cornerRadius: 6,
+                             displayColors: false,
+                             callbacks: {
+                                 title: function(context) {
+                                     const sale = filteredHistory[context[0].dataIndex];
+                                     const date = new Date(sale.timestamp);
+                                     return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                                 },
+                                 label: function(context) {
+                                     return 'Price: ' + (context.parsed.y).toFixed(2) + ' coins';
+                                 }
+                             }
+                         }
+                    },
+                    scales: {
+                        x: {
+                            grid: {
+                                color: 'rgba(255, 255, 255, 0.1)'
+                            },
+                            ticks: {
+                                color: '#b0b8c1',
+                                maxTicksLimit: 8,
+                                font: {
+                                    size: 11
+                                }
+                            }
+                        },
+                        y: {
+                            grid: {
+                                color: 'rgba(255, 255, 255, 0.1)'
+                            },
+                            ticks: {
+                                color: '#b0b8c1',
+                                font: {
+                                    size: 11
+                                }
+                            }
+                        }
+                    },
+                    interaction: {
+                        intersect: false,
+                        mode: 'index'
+                    }
+                }
+            });
+        }
+
+        function updatePriceList(history) {
+            const filteredHistory = filterHistoryByRange(history, currentRange);
+            console.log('Filtered history:', filteredHistory.length, 'sales');
+            
+            const priceList = document.getElementById('priceList');
+            
+            if (filteredHistory.length === 0) {
+                priceList.innerHTML = '<div class="placeholder">No data for selected range</div>';
+                return;
+            }
+
+            // Safety limit - never render more than 10 items
+            const maxItems = 10;
+            const itemsToShow = filteredHistory.slice().reverse().slice(0, maxItems);
+            
+            console.log(`Rendering ${itemsToShow.length} items (max ${maxItems})`);
+
+            // Create simple price list
+            let html = '';
+            itemsToShow.forEach((sale, index) => {
+                const time = new Date(sale.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                const price = (sale.price / 100).toFixed(2);
+                const priceUSD = (sale.price_usd || (sale.price / 100 * 0.614)).toFixed(2);
+                
+                html += `
+                    <div class="price-item">
+                        <div class="price-info">
+                            <div class="price-time">${time}</div>
+                            <div class="price-usd">$${priceUSD}</div>
+                        </div>
+                        <div class="price-value">${price} coins</div>
+                    </div>
+                `;
+            });
+
+            if (filteredHistory.length > maxItems) {
+                html += `<div class="price-item" style="color: #b0b8c1; text-align: center; font-style: italic;">
+                    +${filteredHistory.length - maxItems} more sales...
+                </div>`;
+            }
+
+            priceList.innerHTML = html;
+        }
+
+        function updateStats(history) {
+            const filteredHistory = filterHistoryByRange(history, currentRange);
+            
+            if (filteredHistory.length === 0) {
+                document.getElementById('statPriceChange').textContent = '-';
+                document.getElementById('statSalesPerDay').textContent = '-';
+                document.getElementById('statTotalSales').textContent = '-';
+                return;
+            }
+
+            // Price change
+            const first = filteredHistory[0].price;
+            const last = filteredHistory[filteredHistory.length - 1].price;
+            const change = last - first;
+            const changePct = first ? (change / first * 100).toFixed(1) : 0;
+            
+            document.getElementById('statPriceChange').innerHTML = 
+                `${change >= 0 ? '+' : ''}${(change / 100).toFixed(2)} <span style="color:${change >= 0 ? '#4caf50' : '#f44336'}; font-size:0.8em;">${changePct}%</span>`;
+
+            // Sales per day
+            const rangeDays = currentRange === 'all' ? 
+                Math.max(1, Math.ceil((new Date(filteredHistory[filteredHistory.length - 1].timestamp) - new Date(filteredHistory[0].timestamp)) / (24 * 60 * 60 * 1000))) : 
+                currentRange;
+            const salesPerDay = (filteredHistory.length / (rangeDays || 1)).toFixed(2);
+            document.getElementById('statSalesPerDay').innerHTML = 
+                `${salesPerDay} <span style="color:#4fc3f7; font-size:0.8em;">/ day</span>`;
+
+            // Total sales
+            document.getElementById('statTotalSales').textContent = filteredHistory.length;
+        }
+
+        function updateSalesDisplay(history) {
+            const filteredHistory = filterHistoryByRange(history, currentRange);
+            const container = document.getElementById('salesContent');
+            
+            if (filteredHistory.length === 0) {
+                container.innerHTML = '<div class="no-data">No sales data for this period</div>';
+                return;
+            }
+
+            // Calculate summary stats
+            const totalSales = filteredHistory.length;
+            const avgPrice = filteredHistory.reduce((sum, sale) => sum + sale.price, 0) / totalSales;
+            const minPrice = Math.min(...filteredHistory.map(sale => sale.price));
+            const maxPrice = Math.max(...filteredHistory.map(sale => sale.price));
+
+            // Create summary card
+            let html = `
+                <div class="sales-summary">
+                    <div class="summary-header">
+                        <div class="summary-title">Summary</div>
+                        <div style="color: #4fc3f7; font-weight: bold;">${totalSales} sales</div>
+                    </div>
+                    <div class="summary-stats">
+                        <div class="summary-stat">
+                            <div class="summary-stat-value">${(minPrice / 100).toFixed(2)}</div>
+                            <div class="summary-stat-label">Lowest</div>
+                        </div>
+                        <div class="summary-stat">
+                            <div class="summary-stat-value">${(maxPrice / 100).toFixed(2)}</div>
+                            <div class="summary-stat-label">Highest</div>
+                        </div>
+                        <div class="summary-stat">
+                            <div class="summary-stat-value">${(avgPrice / 100).toFixed(2)}</div>
+                            <div class="summary-stat-label">Average</div>
+                        </div>
+                    </div>
+                    <div class="sales-chips">
+            `;
+
+            // Add individual sale chips (most recent first)
+            const reversedHistory = filteredHistory.slice().reverse();
+            reversedHistory.slice(0, 8).forEach(sale => {
+                const time = new Date(sale.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                const price = (sale.price / 100).toFixed(2);
+                const priceUSD = (sale.price_usd || (sale.price / 100 * 0.614)).toFixed(2);
+                
+                html += `
+                    <div class="sale-chip">
+                        <div class="sale-time">${time}</div>
+                        <div class="sale-price">${price} coins</div>
+                        <div class="sale-usd">$${priceUSD}</div>
+                    </div>
+                `;
+            });
+
+            if (reversedHistory.length > 8) {
+                html += `<div class="sale-chip" style="color: #b0b8c1;">+${reversedHistory.length - 8} more</div>`;
+            }
+
+            html += '</div></div>';
+            container.innerHTML = html;
+        }
+
+        function filterHistoryByRange(history, rangeDays) {
+            if (rangeDays === 'all') return history;
+            const cutoff = Date.now() - (rangeDays * 24 * 60 * 60 * 1000);
+            return history.filter(h => new Date(h.timestamp).getTime() >= cutoff);
+        }
+
+        function showNoData() {
+            document.getElementById('chartContainer').style.display = 'none';
+            document.getElementById('salesContainer').style.display = 'none';
+        }
+
+        function hideCharts() {
+            document.getElementById('chartContainer').style.display = 'none';
+            document.getElementById('salesContainer').style.display = 'none';
+            if (currentChart) {
+                currentChart.destroy();
+                currentChart = null;
+            }
+            currentItem = null;
+        }
+    </script>
+</body>
+</html> 
